@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Card, CardBody, CardHeader, CardFooter, Button, Checkbox } from '@heroui/react';
+import { Card, CardBody, CardHeader, CardFooter, Button, Checkbox, Modal, ModalContent } from '@heroui/react';
 import { TrashIcon, ArchiveBoxIcon, PlusIcon, SwatchIcon } from '@heroicons/react/24/solid';
 import { Note, ViewMode, SortBy, NoteType, TodoItem } from '../types';
 import ColorPicker, { COLORS } from './ColorPicker';
+import Portal from './Portal';
 
 interface NoteListProps {
   notes: Note[];
@@ -136,31 +137,51 @@ export default function NoteList({
                 >
                   <SwatchIcon className="w-5 h-5" />
                 </Button>
-                {showColorPicker === note.id && (
-                  <div 
-                    className="fixed inset-0 z-[100]" 
-                    onClick={() => setShowColorPicker(null)}
-                  >
-                    <div 
-                      className="absolute z-[101]"
-                      style={{
-                        top: getColorPickerPosition(note.id).top + 'px',
-                        left: getColorPickerPosition(note.id).left + 'px',
-                        transform: 'translateX(-75%)',
-                      }}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <ColorPicker
-                        selectedColor={note.color}
-                        onChange={(color) => {
-                          onUpdateNote({ ...note, color });
-                          setShowColorPicker(null);
+                <Modal 
+                  isOpen={showColorPicker === note.id}
+                  onClose={() => setShowColorPicker(null)}
+                  placement="auto"
+                  hideCloseButton
+                  backdrop="blur"
+                  classNames={{
+                    backdrop: "bg-black/20",
+                    base: "bg-transparent shadow-none",
+                  }}
+                  motionProps={{
+                    variants: {
+                      enter: {
+                        opacity: 1,
+                        transition: { duration: 0.2 }
+                      },
+                      exit: {
+                        opacity: 0,
+                        transition: { duration: 0.2 }
+                      }
+                    }
+                  }}
+                >
+                  <ModalContent>
+                    {() => (
+                      <div 
+                        style={{
+                          position: 'fixed',
+                          top: getColorPickerPosition(note.id).top + 'px',
+                          left: getColorPickerPosition(note.id).left + 'px',
+                          transform: 'translateX(-75%)',
                         }}
-                        onClose={() => setShowColorPicker(null)}
-                      />
-                    </div>
-                  </div>
-                )}
+                      >
+                        <ColorPicker
+                          selectedColor={note.color}
+                          onChange={(color) => {
+                            onUpdateNote({ ...note, color });
+                            setShowColorPicker(null);
+                          }}
+                          onClose={() => setShowColorPicker(null)}
+                        />
+                      </div>
+                    )}
+                  </ModalContent>
+                </Modal>
               </div>
               <Button
                 isIconOnly
