@@ -106,8 +106,9 @@ export default function NoteList({
       {sortedNotes.map((note) => (
         <Card
           key={note.id}
+          isPressable
           className="card hover:shadow-lg transition-shadow bg-card relative cursor-pointer"
-          onClick={() => onNoteClick(note)}
+          onPress={() => onNoteClick(note)}
         >
           <div 
             className="absolute left-0 top-0 bottom-0 w-2 transition-colors"
