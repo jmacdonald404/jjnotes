@@ -19,7 +19,16 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from '@heroui/react';
-import { PlusIcon, Cog6ToothIcon, ListBulletIcon, DocumentTextIcon, SwatchIcon } from '@heroicons/react/24/solid';
+import { 
+  PlusIcon, 
+  Cog6ToothIcon, 
+  ListBulletIcon, 
+  DocumentTextIcon, 
+  SwatchIcon,
+  CalendarIcon,
+  MagnifyingGlassIcon,
+  DocumentIcon
+} from '@heroicons/react/24/solid';
 import NoteList from './components/NoteList';
 import Settings from './components/Settings';
 import ColorPicker, { COLORS } from './components/ColorPicker';
@@ -42,9 +51,11 @@ export default function Home() {
   const [showNewNoteModal, setShowNewNoteModal] = useState(false);
   const [selectedColor, setSelectedColor] = useState(COLORS[0].value);
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const colorButtonRef = useRef<HTMLButtonElement>(null);
   const [showSortModal, setShowSortModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'color' | 'sort' | 'view'>('color');
+  const [currentView, setCurrentView] = useState<'notes' | 'calendar' | 'search'>('notes');
+  const [searchQuery, setSearchQuery] = useState('');
+  const colorButtonRef = useRef<HTMLButtonElement>(null);
   const { theme } = useTheme();
 
   // Get unique colors used in notes
@@ -52,6 +63,17 @@ export default function Home() {
     const colors = new Set(notes.filter(note => !note.isDeleted && !note.isArchived).map(note => note.color));
     return Array.from(colors);
   }, [notes]);
+
+  // Filter notes based on search query
+  const filteredNotes = React.useMemo(() => {
+    if (!searchQuery) return notes;
+    const query = searchQuery.toLowerCase();
+    return notes.filter(note => 
+      (note.title?.toLowerCase().includes(query) || 
+       note.content?.toLowerCase().includes(query)) &&
+      !note.isDeleted
+    );
+  }, [notes, searchQuery]);
 
   useEffect(() => {
     // Load settings from localStorage
@@ -118,90 +140,60 @@ export default function Home() {
     };
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar isBordered>
-        <NavbarBrand>
-          <h1 className="text-xl font-bold">JJNotes</h1>
-        </NavbarBrand>
-        <NavbarContent justify="end">
-          <NavbarItem>
-            <Button
-              color="primary"
-              startContent={<PlusIcon className="w-5 h-5" />}
-              onPress={() => setShowNewNoteModal(true)}
-            >
-              New Note
-            </Button>
-          </NavbarItem>
-          <NavbarItem>
-            <Button
-              isIconOnly
-              variant={showSettings ? "solid" : "light"}
-              color={showSettings ? "primary" : "default"}
-              aria-label="Settings"
-              onPress={() => setShowSettings(!showSettings)}
-            >
-              <Cog6ToothIcon className="w-6 h-6" />
-            </Button>
-          </NavbarItem>
-        </NavbarContent>
-      </Navbar>
+  // Function to handle view switching and ensure mutual exclusivity
+  const handleViewChange = (view: 'notes' | 'calendar' | 'search' | 'settings') => {
+    // Close all modals
+    setShowNewNoteModal(false);
+    setShowColorPicker(false);
+    setShowSortModal(false);
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    // Handle settings separately since it's not a main view
+    if (view === 'settings') {
+      setShowSettings(!showSettings);
+      return;
+    }
+
+    // Close settings if opening a different view
+    setShowSettings(false);
+    setCurrentView(view);
+
+    // Clear search query when leaving search view
+    if (view !== 'search') {
+      setSearchQuery('');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Top Bar */}
+      <div className="h-16 border-b border-divider flex items-center px-4">
+        <h1 className="text-xl font-bold">JJNotes</h1>
+      </div>
+
+      {/* Main Content Area - Add bottom padding to account for navbar */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
         <div className="flex flex-col gap-8">
-          {showSettings && (
+          {showSettings ? (
             <Card className="p-6">
               <Settings
                 settings={settings}
                 onUpdate={handleUpdateSettings}
               />
             </Card>
-          )}
+          ) : currentView === 'notes' ? (
+            <>
+              <Button
+                className="w-full"
+                size="lg"
+                variant="flat"
+                onPress={() => setShowSortModal(true)}
+              >
+                Sort
+              </Button>
 
-          <Button
-            className="w-full"
-            size="lg"
-            variant="flat"
-            onPress={() => setShowSortModal(true)}
-          >
-            Sort
-          </Button>
-
-          <div className="space-y-8">
-            <NoteList
-              notes={notes.filter(note => !note.isDeleted && !note.isArchived)}
-              viewMode={settings.viewMode}
-              sortBy={settings.sortBy}
-              onUpdateNote={(updatedNote) => {
-                setNotes(notes.map(note =>
-                  note.id === updatedNote.id
-                    ? { ...note, ...updatedNote, updatedAt: new Date() }
-                    : note
-                ));
-              }}
-              onDeleteNote={(id) => {
-                setNotes(notes.map(note =>
-                  note.id === id
-                    ? { ...note, isDeleted: true, deletedAt: new Date() }
-                    : note
-                ));
-              }}
-              onArchiveNote={(id) => {
-                setNotes(notes.map(note =>
-                  note.id === id
-                    ? { ...note, isArchived: !note.isArchived }
-                    : note
-                ));
-              }}
-              filterColor={filterColor}
-            />
-
-            {notes.some(note => !note.isDeleted && note.isArchived) && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Archived Notes</h2>
+              <div className="space-y-8">
                 <NoteList
-                  notes={notes.filter(note => !note.isDeleted && note.isArchived)}
+                  notes={notes.filter(note => !note.isDeleted && !note.isArchived)}
                   viewMode={settings.viewMode}
                   sortBy={settings.sortBy}
                   onUpdateNote={(updatedNote) => {
@@ -227,12 +219,141 @@ export default function Home() {
                   }}
                   filterColor={filterColor}
                 />
+
+                {notes.some(note => !note.isDeleted && note.isArchived) && (
+                  <div>
+                    <h2 className="text-xl font-semibold mb-4">Archived Notes</h2>
+                    <NoteList
+                      notes={notes.filter(note => !note.isDeleted && note.isArchived)}
+                      viewMode={settings.viewMode}
+                      sortBy={settings.sortBy}
+                      onUpdateNote={(updatedNote) => {
+                        setNotes(notes.map(note =>
+                          note.id === updatedNote.id
+                            ? { ...note, ...updatedNote, updatedAt: new Date() }
+                            : note
+                        ));
+                      }}
+                      onDeleteNote={(id) => {
+                        setNotes(notes.map(note =>
+                          note.id === id
+                            ? { ...note, isDeleted: true, deletedAt: new Date() }
+                            : note
+                        ));
+                      }}
+                      onArchiveNote={(id) => {
+                        setNotes(notes.map(note =>
+                          note.id === id
+                            ? { ...note, isArchived: !note.isArchived }
+                            : note
+                        ));
+                      }}
+                      filterColor={filterColor}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          ) : currentView === 'calendar' ? (
+            <div className="flex items-center justify-center h-[60vh]">
+              <p className="text-lg opacity-60">Calendar View Coming Soon</p>
+            </div>
+          ) : currentView === 'search' && (
+            <div className="space-y-6">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search notes..."
+                  className="w-full h-12 px-4 pr-12 rounded-lg border-2 border-divider bg-card focus:outline-none focus:border-primary transition-colors"
+                />
+                <MagnifyingGlassIcon className="w-6 h-6 absolute right-4 top-3 opacity-40" />
+              </div>
+              
+              {searchQuery && (
+                <NoteList
+                  notes={filteredNotes}
+                  viewMode={settings.viewMode}
+                  sortBy={settings.sortBy}
+                  onUpdateNote={(updatedNote) => {
+                    setNotes(notes.map(note =>
+                      note.id === updatedNote.id
+                        ? { ...note, ...updatedNote, updatedAt: new Date() }
+                        : note
+                    ));
+                  }}
+                  onDeleteNote={(id) => {
+                    setNotes(notes.map(note =>
+                      note.id === id
+                        ? { ...note, isDeleted: true, deletedAt: new Date() }
+                        : note
+                    ));
+                  }}
+                  onArchiveNote={(id) => {
+                    setNotes(notes.map(note =>
+                      note.id === id
+                        ? { ...note, isArchived: !note.isArchived }
+                        : note
+                    ));
+                  }}
+                  filterColor={filterColor}
+                />
+              )}
+            </div>
+          )}
         </div>
       </main>
 
+      {/* Bottom Navigation Bar */}
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t border-divider flex items-center justify-around px-4">
+        <button 
+          className={`p-2 rounded-lg transition-colors ${
+            currentView === 'notes' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
+          }`}
+          onClick={() => handleViewChange('notes')}
+        >
+          <DocumentIcon className="w-6 h-6" />
+        </button>
+        <button 
+          className={`p-2 rounded-lg transition-colors ${
+            currentView === 'calendar' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
+          }`}
+          onClick={() => handleViewChange('calendar')}
+        >
+          <CalendarIcon className="w-6 h-6" />
+        </button>
+        {/* Floating Action Button */}
+        <div className="relative -top-8">
+          <button 
+            className="w-16 h-16 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors transform hover:scale-105 active:scale-95"
+            onClick={() => {
+              handleViewChange('notes');
+              setShowNewNoteModal(true);
+            }}
+          >
+            <PlusIcon className="w-8 h-8" />
+          </button>
+        </div>
+        <button 
+          className={`p-2 rounded-lg transition-colors ${
+            currentView === 'search' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
+          }`}
+          onClick={() => handleViewChange('search')}
+        >
+          <MagnifyingGlassIcon className="w-6 h-6" />
+        </button>
+        <button 
+          className={`p-2 rounded-lg transition-colors ${
+            showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
+          }`}
+          onClick={() => handleViewChange('settings')}
+        >
+          <Cog6ToothIcon className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Modals */}
       {showNewNoteModal && (
         <div 
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
