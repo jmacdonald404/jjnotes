@@ -38,7 +38,16 @@ export default function Settings({ settings, onUpdate }: SettingsProps) {
         <div>
           <h3 className="text-lg font-medium mb-2">Theme</h3>
           <Select
-            label="Select theme"
+            classNames={{
+              base: "inline-flex",
+              trigger: "min-h-unit-8 py-0.5 h-8",
+              value: "flex-nowrap",
+              mainWrapper: "flex items-center h-8",
+              innerWrapper: "flex items-center h-8",
+            }}
+            size="sm"
+            variant="flat"
+            startContent={<span className="text-default-500 mr-2">Theme</span>}
             selectedKeys={[settings.theme]}
             onSelectionChange={(keys) => handleChange('theme', Array.from(keys)[0])}
           >

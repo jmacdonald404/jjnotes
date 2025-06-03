@@ -39,7 +39,7 @@ export default function ColorPicker({ selectedColor, onChange, onClose }: ColorP
 
   if (showAdvanced) {
     return (
-      <div className="bg-background rounded-lg shadow-lg border border-divider p-4 min-w-[280px]">
+      <div className="bg-background rounded-lg shadow-lg border border-divider p-4 min-w-[280px] relative isolate">
         <div className="flex items-center gap-2 mb-4">
           <button
             onClick={() => setShowAdvanced(false)}
@@ -50,7 +50,9 @@ export default function ColorPicker({ selectedColor, onChange, onClose }: ColorP
           <h3 className="text-sm font-medium">Advanced Color Picker</h3>
         </div>
         <div className="space-y-4">
-          <HexColorPicker color={customColor} onChange={handleAdvancedColorChange} />
+          <div className="relative z-[1]">
+            <HexColorPicker color={customColor} onChange={handleAdvancedColorChange} />
+          </div>
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -71,7 +73,7 @@ export default function ColorPicker({ selectedColor, onChange, onClose }: ColorP
   }
 
   return (
-    <div className="bg-background rounded-lg shadow-lg border border-divider p-4 min-w-[280px]">
+    <div className="bg-background rounded-lg shadow-lg border border-divider p-4 min-w-[280px] relative isolate">
       <div className="grid grid-cols-4 gap-3">
         {COLORS.map((color) => (
           <button
