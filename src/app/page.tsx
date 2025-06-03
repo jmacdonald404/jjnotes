@@ -34,6 +34,7 @@ import Settings from './components/Settings';
 import ColorPicker, { COLORS } from './components/ColorPicker';
 import { Note, UserSettings, ViewMode, SortBy, Theme, NoteType } from './types';
 import { useTheme } from './components/ThemeProvider';
+import NoteView from './components/NoteView';
 
 const defaultSettings: UserSettings = {
   theme: Theme.SYSTEM,
@@ -53,10 +54,11 @@ export default function Home() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'color' | 'sort' | 'view'>('color');
-  const [currentView, setCurrentView] = useState<'notes' | 'calendar' | 'search'>('notes');
+  const [currentView, setCurrentView] = useState<'notes' | 'calendar' | 'search' | 'note'>('notes');
   const [searchQuery, setSearchQuery] = useState('');
   const colorButtonRef = useRef<HTMLButtonElement>(null);
   const { theme } = useTheme();
+  const [activeNote, setActiveNote] = useState<Note | null>(null);
 
   // Get unique colors used in notes
   const usedColors = React.useMemo(() => {
@@ -115,6 +117,8 @@ export default function Home() {
     setShowNewNoteModal(false);
     setSelectedColor(COLORS[0].value);
     setShowColorPicker(false);
+    setActiveNote(newNote);
+    handleViewChange('note');
   };
 
   const handleUpdateSettings = (newSettings: UserSettings) => {
@@ -141,7 +145,7 @@ export default function Home() {
   };
 
   // Function to handle view switching and ensure mutual exclusivity
-  const handleViewChange = (view: 'notes' | 'calendar' | 'search' | 'settings') => {
+  const handleViewChange = (view: 'notes' | 'calendar' | 'search' | 'settings' | 'note') => {
     // Close all modals
     setShowNewNoteModal(false);
     setShowColorPicker(false);
@@ -161,27 +165,41 @@ export default function Home() {
     if (view !== 'search') {
       setSearchQuery('');
     }
+
+    // Clear active note when leaving note view
+    if (view !== 'note') {
+      setActiveNote(null);
+    }
+  };
+
+  const handleNoteClick = (note: Note) => {
+    setActiveNote(note);
+    handleViewChange('note');
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Top Bar */}
-      <div className="h-16 border-b border-divider flex items-center px-4">
-        <h1 className="text-xl font-bold">JJNotes</h1>
-      </div>
+      {/* Top Bar - Only show when not in note view */}
+      {currentView !== 'note' && (
+        <div className="h-16 border-b border-divider flex items-center px-4">
+          <h1 className="text-xl font-bold">JJNotes</h1>
+        </div>
+      )}
 
-      {/* Main Content Area - Add bottom padding to account for navbar */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
-        <div className="flex flex-col gap-8">
-          {showSettings ? (
+      {/* Main Content Area */}
+      <main className="flex-1 w-full">
+        {showSettings ? (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
             <Card className="p-6">
               <Settings
                 settings={settings}
                 onUpdate={handleUpdateSettings}
               />
             </Card>
-          ) : currentView === 'notes' ? (
-            <>
+          </div>
+        ) : currentView === 'notes' ? (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
+            <div className="flex flex-col gap-8">
               <Button
                 className="w-full"
                 size="lg"
@@ -196,24 +214,11 @@ export default function Home() {
                   notes={notes.filter(note => !note.isDeleted && !note.isArchived)}
                   viewMode={settings.viewMode}
                   sortBy={settings.sortBy}
+                  onNoteClick={handleNoteClick}
                   onUpdateNote={(updatedNote) => {
                     setNotes(notes.map(note =>
                       note.id === updatedNote.id
                         ? { ...note, ...updatedNote, updatedAt: new Date() }
-                        : note
-                    ));
-                  }}
-                  onDeleteNote={(id) => {
-                    setNotes(notes.map(note =>
-                      note.id === id
-                        ? { ...note, isDeleted: true, deletedAt: new Date() }
-                        : note
-                    ));
-                  }}
-                  onArchiveNote={(id) => {
-                    setNotes(notes.map(note =>
-                      note.id === id
-                        ? { ...note, isArchived: !note.isArchived }
                         : note
                     ));
                   }}
@@ -227,24 +232,11 @@ export default function Home() {
                       notes={notes.filter(note => !note.isDeleted && note.isArchived)}
                       viewMode={settings.viewMode}
                       sortBy={settings.sortBy}
+                      onNoteClick={handleNoteClick}
                       onUpdateNote={(updatedNote) => {
                         setNotes(notes.map(note =>
                           note.id === updatedNote.id
                             ? { ...note, ...updatedNote, updatedAt: new Date() }
-                            : note
-                        ));
-                      }}
-                      onDeleteNote={(id) => {
-                        setNotes(notes.map(note =>
-                          note.id === id
-                            ? { ...note, isDeleted: true, deletedAt: new Date() }
-                            : note
-                        ));
-                      }}
-                      onArchiveNote={(id) => {
-                        setNotes(notes.map(note =>
-                          note.id === id
-                            ? { ...note, isArchived: !note.isArchived }
                             : note
                         ));
                       }}
@@ -253,12 +245,16 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            </>
-          ) : currentView === 'calendar' ? (
+            </div>
+          </div>
+        ) : currentView === 'calendar' ? (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
             <div className="flex items-center justify-center h-[60vh]">
               <p className="text-lg opacity-60">Calendar View Coming Soon</p>
             </div>
-          ) : currentView === 'search' && (
+          </div>
+        ) : currentView === 'search' ? (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
             <div className="space-y-6">
               <div className="relative">
                 <input
@@ -276,6 +272,7 @@ export default function Home() {
                   notes={filteredNotes}
                   viewMode={settings.viewMode}
                   sortBy={settings.sortBy}
+                  onNoteClick={handleNoteClick}
                   onUpdateNote={(updatedNote) => {
                     setNotes(notes.map(note =>
                       note.id === updatedNote.id
@@ -283,75 +280,92 @@ export default function Home() {
                         : note
                     ));
                   }}
-                  onDeleteNote={(id) => {
-                    setNotes(notes.map(note =>
-                      note.id === id
-                        ? { ...note, isDeleted: true, deletedAt: new Date() }
-                        : note
-                    ));
-                  }}
-                  onArchiveNote={(id) => {
-                    setNotes(notes.map(note =>
-                      note.id === id
-                        ? { ...note, isArchived: !note.isArchived }
-                        : note
-                    ));
-                  }}
                   filterColor={filterColor}
                 />
               )}
             </div>
-          )}
-        </div>
+          </div>
+        ) : currentView === 'note' && activeNote && (
+          <NoteView
+            note={activeNote}
+            onBack={() => handleViewChange('notes')}
+            onUpdate={(updatedNote) => {
+              setNotes(notes.map(note =>
+                note.id === updatedNote.id
+                  ? { ...note, ...updatedNote, updatedAt: new Date() }
+                  : note
+              ));
+              setActiveNote(prev => prev && prev.id === updatedNote.id
+                ? { ...prev, ...updatedNote }
+                : prev
+              );
+            }}
+            onDelete={(id) => {
+              setNotes(notes.map(note =>
+                note.id === id
+                  ? { ...note, isDeleted: true, deletedAt: new Date() }
+                  : note
+              ));
+              handleViewChange('notes');
+            }}
+            onArchive={(id) => {
+              setNotes(notes.map(note =>
+                note.id === id
+                  ? { ...note, isArchived: !note.isArchived }
+                  : note
+              ));
+              handleViewChange('notes');
+            }}
+          />
+        )}
       </main>
 
-      {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t border-divider flex items-center justify-around px-4">
-        <button 
-          className={`p-2 rounded-lg transition-colors ${
-            currentView === 'notes' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
-          }`}
-          onClick={() => handleViewChange('notes')}
-        >
-          <DocumentIcon className="w-6 h-6" />
-        </button>
-        <button 
-          className={`p-2 rounded-lg transition-colors ${
-            currentView === 'calendar' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
-          }`}
-          onClick={() => handleViewChange('calendar')}
-        >
-          <CalendarIcon className="w-6 h-6" />
-        </button>
-        {/* Floating Action Button */}
-        <div className="relative -top-8">
+      {/* Bottom Navigation Bar - Only show when not in note view */}
+      {currentView !== 'note' && (
+        <div className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t border-divider flex items-center justify-around px-4">
           <button 
-            className="w-16 h-16 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors transform hover:scale-105 active:scale-95"
-            onClick={() => {
-              handleViewChange('notes');
-              setShowNewNoteModal(true);
-            }}
+            className={`p-2 rounded-lg transition-colors ${
+              currentView === 'notes' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
+            }`}
+            onClick={() => handleViewChange('notes')}
           >
-            <PlusIcon className="w-8 h-8" />
+            <DocumentIcon className="w-6 h-6" />
+          </button>
+          <button 
+            className={`p-2 rounded-lg transition-colors ${
+              currentView === 'calendar' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
+            }`}
+            onClick={() => handleViewChange('calendar')}
+          >
+            <CalendarIcon className="w-6 h-6" />
+          </button>
+          {/* Floating Action Button */}
+          <div className="relative -top-8">
+            <button 
+              className="w-16 h-16 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors transform hover:scale-105 active:scale-95"
+              onClick={() => setShowNewNoteModal(true)}
+            >
+              <PlusIcon className="w-8 h-8" />
+            </button>
+          </div>
+          <button 
+            className={`p-2 rounded-lg transition-colors ${
+              currentView === 'search' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
+            }`}
+            onClick={() => handleViewChange('search')}
+          >
+            <MagnifyingGlassIcon className="w-6 h-6" />
+          </button>
+          <button 
+            className={`p-2 rounded-lg transition-colors ${
+              showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
+            }`}
+            onClick={() => handleViewChange('settings')}
+          >
+            <Cog6ToothIcon className="w-6 h-6" />
           </button>
         </div>
-        <button 
-          className={`p-2 rounded-lg transition-colors ${
-            currentView === 'search' && !showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
-          }`}
-          onClick={() => handleViewChange('search')}
-        >
-          <MagnifyingGlassIcon className="w-6 h-6" />
-        </button>
-        <button 
-          className={`p-2 rounded-lg transition-colors ${
-            showSettings ? 'text-primary bg-primary/10' : 'hover:bg-primary/10'
-          }`}
-          onClick={() => handleViewChange('settings')}
-        >
-          <Cog6ToothIcon className="w-6 h-6" />
-        </button>
-      </div>
+      )}
 
       {/* Modals */}
       {showNewNoteModal && (

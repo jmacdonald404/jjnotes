@@ -11,9 +11,8 @@ interface NoteListProps {
   notes: Note[];
   viewMode: ViewMode;
   sortBy: SortBy;
+  onNoteClick: (note: Note) => void;
   onUpdateNote: (note: Partial<Note>) => void;
-  onDeleteNote: (id: string) => void;
-  onArchiveNote: (id: string) => void;
   filterColor?: string;
 }
 
@@ -21,9 +20,8 @@ export default function NoteList({
   notes,
   viewMode,
   sortBy,
+  onNoteClick,
   onUpdateNote,
-  onDeleteNote,
-  onArchiveNote,
   filterColor,
 }: NoteListProps) {
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
@@ -108,7 +106,8 @@ export default function NoteList({
       {sortedNotes.map((note) => (
         <Card
           key={note.id}
-          className="card hover:shadow-lg transition-shadow bg-card relative"
+          className="card hover:shadow-lg transition-shadow bg-card relative cursor-pointer"
+          onClick={() => onNoteClick(note)}
         >
           <div 
             className="absolute left-0 top-0 bottom-0 w-2 transition-colors"
@@ -116,139 +115,37 @@ export default function NoteList({
               backgroundColor: note.color !== COLORS[0].value ? note.color : 'var(--divider)'
             }} 
           />
-          <CardHeader className="flex justify-between items-start gap-2 pl-4">
-            <input
-              type="text"
-              value={note.title}
-              onChange={(e) => onUpdateNote({ ...note, title: e.target.value })}
-              className="text-lg font-semibold bg-transparent border-none focus:outline-none flex-grow text-foreground"
-              placeholder={note.type === NoteType.TODO ? "Checklist title" : "Note title"}
-            />
-            <div className="flex gap-2">
-              <div className="relative">
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="light"
-                  ref={(el) => {
-                    if (el) colorButtonRefs.current.set(note.id, el);
-                  }}
-                  onClick={() => setShowColorPicker(showColorPicker === note.id ? null : note.id)}
-                >
-                  <SwatchIcon className="w-5 h-5" />
-                </Button>
-                <Modal 
-                  isOpen={showColorPicker === note.id}
-                  onClose={() => setShowColorPicker(null)}
-                  placement="auto"
-                  hideCloseButton
-                  backdrop="blur"
-                  classNames={{
-                    backdrop: "bg-black/20",
-                    base: "bg-transparent shadow-none",
-                  }}
-                  motionProps={{
-                    variants: {
-                      enter: {
-                        opacity: 1,
-                        transition: { duration: 0.2 }
-                      },
-                      exit: {
-                        opacity: 0,
-                        transition: { duration: 0.2 }
-                      }
-                    }
-                  }}
-                >
-                  <ModalContent>
-                    {() => (
-                      <div 
-                        style={{
-                          position: 'fixed',
-                          top: getColorPickerPosition(note.id).top + 'px',
-                          left: getColorPickerPosition(note.id).left + 'px',
-                          transform: 'translateX(-75%)',
-                        }}
-                      >
-                        <ColorPicker
-                          selectedColor={note.color}
-                          onChange={(color) => {
-                            onUpdateNote({ ...note, color });
-                            setShowColorPicker(null);
-                          }}
-                          onClose={() => setShowColorPicker(null)}
-                        />
-                      </div>
-                    )}
-                  </ModalContent>
-                </Modal>
-              </div>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                onClick={() => onArchiveNote(note.id)}
-                className="text-foreground"
-              >
-                <ArchiveBoxIcon className="w-5 h-5" />
-              </Button>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                color="danger"
-                onClick={() => onDeleteNote(note.id)}
-              >
-                <TrashIcon className="w-5 h-5" />
-              </Button>
-            </div>
+          <CardHeader className="pl-4">
+            <h3 className="text-lg font-semibold truncate">
+              {note.title || "Untitled"}
+            </h3>
           </CardHeader>
           <CardBody className="pl-4">
             {note.type === NoteType.TODO ? (
               <div className="space-y-2">
                 {note.todoItems?.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2">
+                  <div 
+                    key={item.id} 
+                    className="flex items-center gap-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUpdateTodoItem(note, item.id, { completed: !item.completed });
+                    }}
+                  >
                     <Checkbox
                       isSelected={item.completed}
-                      onValueChange={(checked) => handleUpdateTodoItem(note, item.id, { completed: checked })}
+                      isReadOnly
                     />
-                    <input
-                      type="text"
-                      value={item.content}
-                      onChange={(e) => handleUpdateTodoItem(note, item.id, { content: e.target.value })}
-                      className={`flex-grow bg-transparent border-none focus:outline-none text-foreground ${
-                        item.completed ? 'line-through opacity-50' : ''
-                      }`}
-                      placeholder="Todo item"
-                    />
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="light"
-                      color="danger"
-                      onClick={() => handleDeleteTodoItem(note, item.id)}
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </Button>
+                    <span className={`flex-grow ${item.completed ? 'line-through opacity-50' : ''}`}>
+                      {item.content || "Empty todo item"}
+                    </span>
                   </div>
                 ))}
-                <Button
-                  size="sm"
-                  variant="light"
-                  startContent={<PlusIcon className="w-4 h-4" />}
-                  onClick={() => handleAddTodoItem(note)}
-                >
-                  Add Item
-                </Button>
               </div>
             ) : (
-              <textarea
-                value={note.content}
-                onChange={(e) => onUpdateNote({ ...note, content: e.target.value })}
-                className="w-full bg-transparent border-none focus:outline-none resize-none text-foreground"
-                rows={4}
-                placeholder="Note content"
-              />
+              <p className="line-clamp-3 opacity-60">
+                {note.content || "Empty note"}
+              </p>
             )}
           </CardBody>
           <CardFooter className="pl-4">
