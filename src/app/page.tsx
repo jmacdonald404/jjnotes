@@ -43,7 +43,15 @@ export default function Home() {
   const [selectedColor, setSelectedColor] = useState(COLORS[0].value);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
+  const [showSortModal, setShowSortModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'color' | 'sort' | 'view'>('color');
   const { theme } = useTheme();
+
+  // Get unique colors used in notes
+  const usedColors = React.useMemo(() => {
+    const colors = new Set(notes.filter(note => !note.isDeleted && !note.isArchived).map(note => note.color));
+    return Array.from(colors);
+  }, [notes]);
 
   useEffect(() => {
     // Load settings from localStorage
@@ -151,36 +159,14 @@ export default function Home() {
             </Card>
           )}
 
-          <div className="flex justify-between items-center gap-4">
-            <div className="flex gap-4 items-center">
-              <Select
-                label="View"
-                selectedKeys={[settings.viewMode]}
-                onSelectionChange={(keys) => setSettings({
-                  ...settings,
-                  viewMode: Array.from(keys)[0] as ViewMode
-                })}
-              >
-                <SelectItem key={ViewMode.GRID}>Grid</SelectItem>
-                <SelectItem key={ViewMode.LIST}>List</SelectItem>
-              </Select>
-
-              <Select
-                label="Sort by"
-                selectedKeys={[settings.sortBy]}
-                onSelectionChange={(keys) => setSettings({
-                  ...settings,
-                  sortBy: Array.from(keys)[0] as SortBy
-                })}
-              >
-                <SelectItem key={SortBy.CREATED_DESC}>Newest First</SelectItem>
-                <SelectItem key={SortBy.CREATED_ASC}>Oldest First</SelectItem>
-                <SelectItem key={SortBy.ALPHA_ASC}>Title A-Z</SelectItem>
-                <SelectItem key={SortBy.ALPHA_DESC}>Title Z-A</SelectItem>
-                <SelectItem key={SortBy.MODIFIED_DESC}>Last Modified</SelectItem>
-              </Select>
-            </div>
-          </div>
+          <Button
+            className="w-full"
+            size="lg"
+            variant="flat"
+            onPress={() => setShowSortModal(true)}
+          >
+            Sort
+          </Button>
 
           <div className="space-y-8">
             <NoteList
@@ -328,6 +314,194 @@ export default function Home() {
                   <span className="text-foreground font-medium">Checklist</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSortModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSortModal(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-background rounded-lg p-6 max-w-md w-full mx-4 shadow-lg"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex w-full gap-2">
+                <Button
+                  className="flex-1"
+                  color={activeTab === 'color' ? 'primary' : 'default'}
+                  variant={activeTab === 'color' ? 'solid' : 'flat'}
+                  onPress={() => setActiveTab('color')}
+                >
+                  Color
+                </Button>
+                <Button
+                  className="flex-1"
+                  color={activeTab === 'sort' ? 'primary' : 'default'}
+                  variant={activeTab === 'sort' ? 'solid' : 'flat'}
+                  onPress={() => setActiveTab('sort')}
+                >
+                  Sort
+                </Button>
+                <Button
+                  className="flex-1"
+                  color={activeTab === 'view' ? 'primary' : 'default'}
+                  variant={activeTab === 'view' ? 'solid' : 'flat'}
+                  onPress={() => setActiveTab('view')}
+                >
+                  View
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {activeTab === 'color' && (
+                <div className="grid grid-cols-4 gap-3">
+                  <button
+                    className="group relative flex flex-col items-center gap-1"
+                    onClick={() => {
+                      setFilterColor(undefined);
+                      setShowSortModal(false);
+                    }}
+                  >
+                    <div
+                      className="w-12 h-12 rounded-lg transition-transform group-hover:scale-110 border-2 relative"
+                      style={{
+                        backgroundColor: 'var(--card-background)',
+                        borderColor: filterColor === undefined ? 'var(--color-primary)' : 'var(--divider)',
+                      }}
+                    >
+                      {filterColor === undefined && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-primary" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs opacity-60">All</span>
+                  </button>
+                  {usedColors.map((color) => (
+                    <button
+                      key={color}
+                      className="group relative flex flex-col items-center gap-1"
+                      onClick={() => {
+                        setFilterColor(color);
+                        setShowSortModal(false);
+                      }}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-lg transition-transform group-hover:scale-110 border-2 relative"
+                        style={{
+                          backgroundColor: color,
+                          borderColor: filterColor === color ? 'var(--color-primary)' : COLORS.find(c => c.value === color)?.border,
+                        }}
+                      >
+                        {filterColor === color && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-primary" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs opacity-60">
+                        {COLORS.find(c => c.value === color)?.label || 'Custom'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'sort' && (
+                <div className="space-y-2">
+                  <Button
+                    className="w-full justify-start"
+                    variant={settings.sortBy === SortBy.CREATED_DESC ? 'solid' : 'flat'}
+                    color={settings.sortBy === SortBy.CREATED_DESC ? 'primary' : 'default'}
+                    onPress={() => {
+                      setSettings({ ...settings, sortBy: SortBy.CREATED_DESC });
+                      setShowSortModal(false);
+                    }}
+                  >
+                    Newest First
+                  </Button>
+                  <Button
+                    className="w-full justify-start"
+                    variant={settings.sortBy === SortBy.CREATED_ASC ? 'solid' : 'flat'}
+                    color={settings.sortBy === SortBy.CREATED_ASC ? 'primary' : 'default'}
+                    onPress={() => {
+                      setSettings({ ...settings, sortBy: SortBy.CREATED_ASC });
+                      setShowSortModal(false);
+                    }}
+                  >
+                    Oldest First
+                  </Button>
+                  <Button
+                    className="w-full justify-start"
+                    variant={settings.sortBy === SortBy.MODIFIED_DESC ? 'solid' : 'flat'}
+                    color={settings.sortBy === SortBy.MODIFIED_DESC ? 'primary' : 'default'}
+                    onPress={() => {
+                      setSettings({ ...settings, sortBy: SortBy.MODIFIED_DESC });
+                      setShowSortModal(false);
+                    }}
+                  >
+                    Last Modified
+                  </Button>
+                  <Button
+                    className="w-full justify-start"
+                    variant={settings.sortBy === SortBy.ALPHA_ASC ? 'solid' : 'flat'}
+                    color={settings.sortBy === SortBy.ALPHA_ASC ? 'primary' : 'default'}
+                    onPress={() => {
+                      setSettings({ ...settings, sortBy: SortBy.ALPHA_ASC });
+                      setShowSortModal(false);
+                    }}
+                  >
+                    Title A-Z
+                  </Button>
+                  <Button
+                    className="w-full justify-start"
+                    variant={settings.sortBy === SortBy.ALPHA_DESC ? 'solid' : 'flat'}
+                    color={settings.sortBy === SortBy.ALPHA_DESC ? 'primary' : 'default'}
+                    onPress={() => {
+                      setSettings({ ...settings, sortBy: SortBy.ALPHA_DESC });
+                      setShowSortModal(false);
+                    }}
+                  >
+                    Title Z-A
+                  </Button>
+                </div>
+              )}
+
+              {activeTab === 'view' && (
+                <div className="space-y-2">
+                  <Button
+                    className="w-full justify-start"
+                    variant={settings.viewMode === ViewMode.GRID ? 'solid' : 'flat'}
+                    color={settings.viewMode === ViewMode.GRID ? 'primary' : 'default'}
+                    onPress={() => {
+                      setSettings({ ...settings, viewMode: ViewMode.GRID });
+                      setShowSortModal(false);
+                    }}
+                  >
+                    Grid View
+                  </Button>
+                  <Button
+                    className="w-full justify-start"
+                    variant={settings.viewMode === ViewMode.LIST ? 'solid' : 'flat'}
+                    color={settings.viewMode === ViewMode.LIST ? 'primary' : 'default'}
+                    onPress={() => {
+                      setSettings({ ...settings, viewMode: ViewMode.LIST });
+                      setShowSortModal(false);
+                    }}
+                  >
+                    List View
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
